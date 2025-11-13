@@ -1,0 +1,15 @@
+{
+  "name": "gambia-cleanflow-project",
+  "version": "1.0.0",
+  "description": "Gambia CleanFlow Project",
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../gambia-cleanflow && npm install",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd gambia-cleanflow && npm run dev",
+    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
