@@ -30,8 +30,8 @@ const corsOptions = {
         const allowedOrigins = [
             'http://localhost:5173',
             'http://localhost:3000',
-            'http://localhost:8082'
-        ];
+            'http://localhost:8082',
+            'https://final-year-project-front-end-ges4.vercel.app'        ];
         // Allow requests with no origin (mobile apps, curl)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1) {
