@@ -59,9 +59,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
 
-// SSE endpoint for real-time location updates
-// Real-time streams are exposed via `locationRoutes` (router -> /api/locations/stream)
-app.use('/api/locations/stream', locationRoutes);
+// // SSE endpoint for real-time location updates
+// // Real-time streams are exposed via `locationRoutes` (router -> /api/locations/stream)
+// app.use('/api/locations/stream', locationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
