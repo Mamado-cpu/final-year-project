@@ -1,8 +1,8 @@
 const nodemailer = require('nodemailer');
-const sgMail = require('@sendgrid/mail');
+// const sgMail = require('@sendgrid/mail');
 
 // Configure SendGrid API Key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Create a reusable transporter object using SendGrid
 const transporter = nodemailer.createTransport({
