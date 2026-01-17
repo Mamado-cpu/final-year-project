@@ -1,19 +1,19 @@
-const nodemailer = require('nodemailer');
-// const sgMail = require('@sendgrid/mail');
+// const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 // Configure SendGrid API Key
-// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Create a reusable transporter object using SendGrid
-const transporter = nodemailer.createTransport({
-    host: 'smtp.sendgrid.net',
-    port: 587,
-    secure: false, // Use TLS
-    auth: {
-        user: 'apikey', // This is the fixed username for SendGrid
-        pass: process.env.SENDGRID_API_KEY, // Use the API key as the password
-    },
-});
+// const transporter = nodemailer.createTransport({
+//     host: 'smtp.sendgrid.net',
+//     port: 587,
+//     secure: false, // Use TLS
+//     auth: {
+//         user: 'apikey', // This is the fixed username for SendGrid
+//         pass: process.env.SENDGRID_API_KEY, // Use the API key as the password
+//     },
+// });
 
 /**
  * Send a verification email
@@ -30,7 +30,7 @@ const sendVerificationEmail = async (to, subject, html) => {
             html,
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        const info = await sgMail.send(mailOptions);
         console.log('Email sent successfully:', {
             response: info.response,
             messageId: info.messageId,
