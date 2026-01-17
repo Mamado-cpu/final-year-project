@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const gpsController = require('../controllers/gpsController');
+const passwordController = require('../controllers/passwordController');
 const { auth: ensureAuth } = require('../middlewares/auth');
 
 router.post('/register', authController.register);
@@ -13,5 +14,9 @@ router.get('/me', ensureAuth, authController.me);
 router.post('/gps/update', ensureAuth, gpsController.updateLocation);
 // Route for collectors to deactivate location sharing
 router.post('/gps/deactivate', ensureAuth, gpsController.deactivateCollector);
+// Password recovery routes
+router.post('/password-reset/request', passwordController.requestPasswordReset);
+router.post('/password-reset/verify', passwordController.verifyResetCode);
+router.post('/password-reset/reset', passwordController.resetPassword);
 
 module.exports = router;

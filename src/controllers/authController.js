@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Collector = require('../models/Collector');
-const { sendOtp } = require('../utils/twoFactor');
+const { sendVerificationEmail } = require('../services/emailService');
 
 function generateCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -71,11 +71,13 @@ const authController = {
                 userData.isVerified = true; // Automatically verify collectors for now
             }
 
-            // Send OTP
+            // Send verification email
             try {
-                await sendOtp({ email }, code, 'email');
+                const subject = 'Verify Your Email';
+                const html = `<p>Your verification code is: <strong>${code}</strong></p>`;
+                await sendVerificationEmail(email, subject, html);
             } catch (e) {
-                console.error('Failed to send OTP during registration:', e && e.message ? e.message : e);
+                console.error('Failed to send verification email during registration:', e && e.message ? e.message : e);
                 return res.status(500).json({ message: 'Failed to send verification email' });
             }
 
@@ -228,11 +230,13 @@ const authController = {
             const code = generateCode();
             const hashedCode = await bcrypt.hash(code, 10);
 
-            // Send OTP
+            // Send verification email
             try {
-                await sendOtp({ email: userEmail }, code, 'email');
+                const subject = 'Verify Your Email';
+                const html = `<p>Your verification code is: <strong>${code}</strong></p>`;
+                await sendVerificationEmail(userEmail, subject, html);
             } catch (e) {
-                console.error('Failed to resend OTP:', e && e.message ? e.message : e);
+                console.error('Failed to resend verification email:', e && e.message ? e.message : e);
                 return res.status(500).json({ message: 'Failed to send verification email' });
             }
 
@@ -314,6 +318,13 @@ const authController = {
 
             // No 2FA -> issue normal token
             const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+            // Include collector profile in response if user is a collector
+            let collectorProfile = null;
+            if (user.roles && user.roles.includes('collector')) {
+                collectorProfile = await Collector.findOne({ userId: user._id });
+            }
+
             res.json({
                 token,
                 user: {
@@ -321,7 +332,8 @@ const authController = {
                     username: user.username,
                     email: user.email,
                     fullName: user.fullName,
-                    roles: user.roles
+                    roles: user.roles,
+                    collectorProfile // Include collector profile if available
                 }
             });
         } catch (error) {

@@ -5,7 +5,7 @@ const User = require('../models/User');
 const Collector = require('../models/Collector');
 const Booking = require('../models/Booking');
 const Report = require('../models/Report');
-const { sendOtp } = require('../utils/twoFactor');
+const { sendVerificationEmail } = require('../services/emailService');
 
 function generateCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -61,16 +61,18 @@ const adminController = {
         roles: ['collector'],
         twoFactorEnabled: false,
         twoFactorMethod: 'email',
-        isVerified: true, // Will be set to true after verification
+        isVerified: false, // Will be set to true after verification
         vehicleNumber: vehicleNumber || undefined,
         vehicleType: vehicleType || undefined
       };
 
-      // Send OTP
+      // Send verification email
       try {
-        await sendOtp({ email }, code, 'email');
+        const subject = 'Verify Your Email';
+        const html = `<p>Your verification code is: <strong>${code}</strong></p>`;
+        await sendVerificationEmail(email, subject, html);
       } catch (e) {
-        console.error('Failed to send OTP for new collector:', e && e.message ? e.message : e);
+        console.error('Failed to send verification email for new collector:', e && e.message ? e.message : e);
         return res.status(500).json({ message: 'Failed to send verification email' });
       }
 
@@ -82,6 +84,10 @@ const adminController = {
         expires: Date.now() + 5 * 60 * 1000 // 5 minutes
       }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
+      // Save the user to the database with isVerified: false
+      const user = new User({ ...userData, isVerified: false });
+      await user.save();
+
       res.status(200).json({ 
         twoFactorRequired: true, 
         tempToken, 
@@ -91,6 +97,40 @@ const adminController = {
     } catch (error) {
       console.error('Admin create collector error:', error && error.stack ? error.stack : error);
       res.status(500).json({ message: 'Server error', error: error.message || String(error) });
+    }
+  },
+
+  verifyCollector: async (req, res) => {
+    try {
+      const { tempToken, code } = req.body;
+      const tokenData = jwt.verify(tempToken, process.env.JWT_SECRET);
+
+      if (!tokenData || !tokenData.userData || !tokenData.verificationCode) {
+        return res.status(400).json({ message: 'Invalid or expired token' });
+      }
+
+      const user = await User.findOneAndUpdate(
+        { email: tokenData.userData.email },
+        { $set: { isVerified: true } },
+        { new: true }
+      );
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found for verification' });
+      }
+
+      const isCodeValid = await bcrypt.compare(code, tokenData.verificationCode);
+      if (!isCodeValid) {
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      user.isVerified = true;
+      await user.save();
+
+      res.status(201).json({ message: 'Collector successfully verified and created' });
+    } catch (error) {
+      console.error('Collector verification error:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
   },
 

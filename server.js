@@ -27,6 +27,7 @@ try {
             origin: [
                 'http://localhost:5173',
                 'http://localhost:3000',
+                'http://localhost:8082',
                 'https://final-year-project-front-end-ges4.vercel.app'
             ],
             methods: ['GET', 'POST']

@@ -20,4 +20,7 @@ router.get('/stats', auth, checkRole('admin'), adminController.getStats);
 // Route to get all active collectors
 router.get('/collectors', auth, checkRole('admin'), gpsController.getAllCollectors);
 
+// Admin: verify a collector
+router.post('/collectors/verify', auth, checkRole('admin'), adminController.verifyCollector);
+
 module.exports = router;
