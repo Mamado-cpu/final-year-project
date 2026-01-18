@@ -45,30 +45,34 @@ connectDB();
 // Firebase has been removed from server runtime - using MongoDB for realtime/location data now
 
 // Middleware
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8082',
+    'https://final-year-project-front-end.vercel.app',
+    'https://final-year-project-front-end-ges4.vercel.app'
+];
+
 const corsOptions = {
-    origin: function(origin, callback) {
-        const allowedOrigins = [
-            'http://localhost:5173',
-            'http://localhost:3000',
-            'http://localhost:8082',
-            'https://final-year-project-front-end-ges4.vercel.app'        ];
-        // Allow requests with no origin (mobile apps, curl)
+    origin: (origin, callback) => {
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1) {
+
+        if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        // In development, be permissive
-        if (process.env.NODE_ENV !== 'production') {
-            return callback(null, true);
-        }
-        callback(new Error('Not allowed by CORS'));
+
+        console.error('Blocked by CORS:', origin);
+        return callback(null, false); // ❗ DO NOT throw Error
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 };
 
+
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 app.use(morgan('dev'));
 
