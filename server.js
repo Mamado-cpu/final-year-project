@@ -28,6 +28,9 @@ try {
                 'http://localhost:5173',
                 'http://localhost:3000',
                 'http://localhost:8082',
+                'http://localhost:8081',
+                'http://localhost:8080',
+                'https://final-year-project-front-end.vercel.app',
                 'https://final-year-project-front-end-ges4.vercel.app'
             ],
             methods: ['GET', 'POST']
@@ -49,6 +52,9 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:8082',
+    'http://localhost:8081',
+    'http://localhost:8081',
+    'http://localhost:8080',
     'https://final-year-project-front-end.vercel.app',
     'https://final-year-project-front-end-ges4.vercel.app'
 ];

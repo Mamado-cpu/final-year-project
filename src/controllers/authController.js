@@ -259,87 +259,83 @@ const authController = {
 
     login: async (req, res) => {
         try {
-            const { email, username, password } = req.body;
+        const { email, password, role } = req.body;
 
-            if (!password) return res.status(400).json({ message: 'Password is required' });
-
-            const identifier = email || username || '<none>';
-            console.log('Login attempt for identifier:', identifier);
-
-            let user = null;
-            if (email) user = await User.findOne({ email });
-            else if (username) user = await User.findOne({ username });
-            else return res.status(400).json({ message: 'Provide email or username' });
-
-            console.log('Login lookup result:', user ? user._id.toString() : 'not found');
-            console.log('Login user roles:', user ? user.roles : null);
-
-            if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-
-            if (!user.isVerified) return res.status(403).json({ message: 'Account not verified. Please complete signup verification.' });
-
-            const isMatch = await bcrypt.compare(password, user.password || '');
-            if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
-
-            // Ensure roles reflect collector profile if present
-            try {
-                const collectorProfile = await Collector.findOne({ userId: user._id });
-                if (collectorProfile && (!user.roles || !user.roles.includes('collector'))) {
-                    user.roles = Array.from(new Set([...(user.roles || []), 'collector']));
-                    await user.save();
-                    console.log('Synchronized user roles to include collector for', user._id.toString());
-                }
-            } catch (e) {
-                console.error('Failed to synchronize collector role:', e && e.message ? e.message : e);
-            }
-
-            const isResidentOrCollector = user.roles && (user.roles.includes('resident') || user.roles.includes('collector'));
-
-            if (isResidentOrCollector && user.twoFactorEnabled) {
-                // generate code, save hashed
-                const code = generateCode();
-                const hashedCode = await bcrypt.hash(code, 10);
-                user.twoFactorCode = hashedCode;
-                user.twoFactorExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
-                user.twoFactorLastSent = Date.now();
-                await user.save();
-
-                // send code (prefer email when available)
-                try {
-                    const method = user.email ? 'email' : 'email';
-                    await sendOtp(user, code, method);
-                } catch (e) {
-                    console.error('Failed to send OTP:', e.message || e);
-                }
-
-                const tempToken = jwt.sign({ twoFactor: true, userId: user._id }, process.env.JWT_SECRET, { expiresIn: '10m' });
-                return res.status(200).json({ twoFactorRequired: true, tempToken, twoFactorMethod: user.twoFactorMethod });
-            }
-
-            // No 2FA -> issue normal token
-            const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
-
-            // Include collector profile in response if user is a collector
-            let collectorProfile = null;
-            if (user.roles && user.roles.includes('collector')) {
-                collectorProfile = await Collector.findOne({ userId: user._id });
-            }
-
-            res.json({
-                token,
-                user: {
-                    id: user._id,
-                    username: user.username,
-                    email: user.email,
-                    fullName: user.fullName,
-                    roles: user.roles,
-                    collectorProfile // Include collector profile if available
-                }
+        // role MUST come from roleHint
+        if (!email || !password || !role) {
+            return res.status(400).json({
+            message: 'Missing login data',
             });
-        } catch (error) {
-            res.status(500).json({ message: 'Server error', error: error.message });
         }
-    },
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        if (!user.isVerified) {
+            return res.status(403).json({ message: 'Account not verified' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // 🔒 ROLE COMES FROM PAGE, NOT USER INPUT
+        if (!user.roles.includes(role)) {
+            return res.status(403).json({
+            message: 'Access denied. Role mismatch.',
+            });
+        }
+
+        // 🔐 2FA only for resident & collector
+        if (
+            (role === 'resident' || role === 'collector') &&
+            user.twoFactorEnabled
+        ) {
+            const code = generateCode();
+            user.twoFactorCode = await bcrypt.hash(code, 10);
+            user.twoFactorExpires = Date.now() + 5 * 60 * 1000;
+            await user.save();
+
+            await sendOtp(user, code, 'email');
+
+            const tempToken = jwt.sign(
+            { userId: user._id, role },
+            process.env.JWT_SECRET,
+            { expiresIn: '10m' }
+            );
+
+            return res.json({
+            twoFactorRequired: true,
+            tempToken,
+            });
+        }
+
+        // ✅ LOGIN SUCCESS
+        const token = jwt.sign(
+            { userId: user._id, role }, // ACTIVE ROLE
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        return res.json({
+            token,
+            user: {
+            id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            roles: user.roles,
+            role, // 👈 ACTIVE ROLE FROM URL
+            },
+        });
+        } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+        }
+   },
+
     // Get current authenticated user
     me: async (req, res) => {
         try {
@@ -347,6 +343,7 @@ const authController = {
                 // If user has a collector profile but roles missing collector, sync it
                 try {
                     const collectorProfile = await Collector.findOne({ userId: user._id });
+
                     if (collectorProfile && (!user.roles || !user.roles.includes('collector'))) {
                         user.roles = Array.from(new Set([...(user.roles || []), 'collector']));
                         await User.findByIdAndUpdate(user._id, { roles: user.roles });
@@ -356,7 +353,10 @@ const authController = {
                     console.error('Failed to sync roles in /auth/me:', e && e.message ? e.message : e);
                 }
             if (!user) return res.status(404).json({ message: 'User not found' });
-            res.json(user);
+            res.json({
+                ...user.toObject(),
+                
+            });
         } catch (error) {
             res.status(500).json({ message: 'Server error', error: error.message });
         }
