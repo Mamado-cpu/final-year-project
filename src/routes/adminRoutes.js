@@ -23,4 +23,7 @@ router.get('/collectors', auth, checkRole('admin'), gpsController.getAllCollecto
 // Admin: verify a collector
 router.post('/collectors/verify', auth, checkRole('admin'), adminController.verifyCollector);
 
+// Route to get task locations for a specific collector
+router.get('/gps/tasks/:collectorId', auth, checkRole('admin'), gpsController.getTaskLocations);
+
 module.exports = router;

@@ -81,6 +81,13 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Routes
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'SmartWaste API is running 🚛',
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reports', reportRoutes);
@@ -135,6 +142,17 @@ if (io) {
                 io.to('admins').emit('collector:update', payload);
                 if (payload && payload.collectorId) io.to(`collector:${payload.collectorId}`).emit('collector:self', payload);
             } catch (e) { console.error('Socket emit error', e); }
+        });
+
+        socket.on('task:completed', (task) => {
+            try {
+                // Notify all relevant clients about the completed task
+                io.to('residents').emit('task:update', task);
+                io.to('admins').emit('task:update', task);
+                if (task.collectorId) io.to(`collector:${task.collectorId}`).emit('task:self', task);
+            } catch (e) {
+                console.error('Error emitting task completion event:', e);
+            }
         });
 
         socket.on('disconnect', () => {});
